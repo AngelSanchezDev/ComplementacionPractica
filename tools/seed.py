@@ -12,7 +12,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from validator_app.core import db
+from validator_app.models import clientes, database, usuarios
+from validator_app.models.errors import APIError
 
 
 def main(argv=None) -> int:
@@ -34,18 +35,18 @@ def main(argv=None) -> int:
     p_generar.add_argument("--semilla", type=int, default=42)
 
     args = parser.parse_args(argv)
-    conn = db.conectar()
+    conn = database.conectar()
     try:
         if args.comando == "usuario":
-            db.crear_usuario(conn, args.usuario, args.password, args.nombre)
+            usuarios.crear_usuario(conn, args.usuario, args.password, args.nombre)
             print(f"Usuario '{args.usuario}' creado.")
         elif args.comando == "cliente":
-            db.crear_cliente(conn, args.dni, args.nombre, args.score)
+            clientes.crear_cliente(conn, args.dni, args.nombre, args.score)
             print(f"Cliente {args.dni} registrado con score {args.score}.")
         else:
-            creados = db.generar_clientes(conn, args.cantidad, semilla=args.semilla)
+            creados = clientes.generar_clientes(conn, args.cantidad, semilla=args.semilla)
             print(f"{creados} clientes generados.")
-    except db.APIError as exc:
+    except APIError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     finally:

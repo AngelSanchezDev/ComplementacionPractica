@@ -2,14 +2,22 @@
 
 import customtkinter as ctk
 
-from validator_app.core import db
-from validator_app.gui import fields, theme
+from validator_app.controllers.clientes_controller import ClientesController
+from validator_app.models.errors import APIError
+from validator_app.views import entrada, theme
 
 
 class ClienteForm(ctk.CTkToplevel):
-    def __init__(self, master, conn, on_guardado, dni_inicial: str | None = None, editar=False):
+    def __init__(
+        self,
+        master,
+        controller: ClientesController,
+        on_guardado,
+        dni_inicial: str | None = None,
+        editar=False,
+    ):
         super().__init__(master)
-        self.conn = conn
+        self.controller = controller
         self.on_guardado = on_guardado
         self.editar = editar
         self.dni_original = dni_inicial if editar else None
@@ -24,7 +32,7 @@ class ClienteForm(ctk.CTkToplevel):
         frame.pack(fill="both", expand=True, padx=24, pady=24)
 
         ctk.CTkLabel(frame, text="DNI:", font=theme.FUENTE_ETIQUETA).pack(anchor="w")
-        validador = self.register(fields.permitir_digitos(8))
+        validador = self.register(entrada.permitir_digitos(8))
         self.txt_dni = ctk.CTkEntry(
             frame, validate="key", validatecommand=(validador, "%P")
         )
@@ -44,7 +52,7 @@ class ClienteForm(ctk.CTkToplevel):
         self.txt_nombre.pack(fill="x", pady=(2, 8))
 
         ctk.CTkLabel(frame, text="Score (0 a 1000):", font=theme.FUENTE_ETIQUETA).pack(anchor="w")
-        validador_score = self.register(fields.permitir_digitos(4))
+        validador_score = self.register(entrada.permitir_digitos(4))
         self.txt_score = ctk.CTkEntry(
             frame, validate="key", validatecommand=(validador_score, "%P")
         )
@@ -57,11 +65,14 @@ class ClienteForm(ctk.CTkToplevel):
         self.lbl_error = ctk.CTkLabel(frame, text="", text_color="#e5484d")
         self.lbl_error.pack(anchor="w", pady=(4, 4))
 
-        self.btn_guardar = ctk.CTkButton(frame, text="Guardar", command=self._guardar)
+        self.btn_guardar = ctk.CTkButton(
+            frame, text="Guardar", height=theme.ALTO_BOTON, font=theme.FUENTE_BOTON,
+            command=self._guardar,
+        )
         self.btn_guardar.pack(fill="x", pady=(8, 0))
 
         if editar:
-            cliente = db.obtener_cliente(conn, dni_inicial)
+            cliente = self.controller.obtener(dni_inicial)
             if cliente:
                 self.txt_nombre.insert(0, cliente["nombre"])
                 self.txt_score.insert(0, str(cliente["score"]))
@@ -69,19 +80,14 @@ class ClienteForm(ctk.CTkToplevel):
 
     def _revisar_dni_duplicado(self, _event=None):
         dni = self.txt_dni.get().strip()
-        if len(dni) == 8 and db.existe_dni(self.conn, dni):
+        if self.controller.existe(dni):
             self.lbl_dni_estado.configure(text="El DNI ya esta registrado.", text_color="#e5484d")
         else:
             self.lbl_dni_estado.configure(text="")
 
     def _previsualizar_riesgo(self, _event=None):
-        texto = self.txt_score.get().strip()
-        if not texto.isdigit():
-            self.lbl_riesgo_preview.configure(text="")
-            return
-        try:
-            info = db.clasificar_score(self.conn, int(texto))
-        except db.APIError:
+        info = self.controller.clasificar_preview(self.txt_score.get().strip())
+        if info is None:
             self.lbl_riesgo_preview.configure(text="")
             return
         self.lbl_riesgo_preview.configure(
@@ -92,18 +98,15 @@ class ClienteForm(ctk.CTkToplevel):
     def _guardar(self):
         self.lbl_error.configure(text="")
         try:
-            dni = fields.validar_dni(self.txt_dni.get())
-            nombre = fields.validar_nombre(self.txt_nombre.get())
-            score = fields.validar_score_texto(self.txt_score.get())
-        except ValueError as exc:
-            self.lbl_error.configure(text=str(exc))
-            return
-        try:
             if self.editar:
-                db.actualizar_cliente(self.conn, dni, nombre, score)
+                self.controller.actualizar(
+                    self.txt_dni.get(), self.txt_nombre.get(), self.txt_score.get()
+                )
             else:
-                db.crear_cliente(self.conn, dni, nombre, score)
-        except db.APIError as exc:
+                self.controller.crear(
+                    self.txt_dni.get(), self.txt_nombre.get(), self.txt_score.get()
+                )
+        except APIError as exc:
             self.lbl_error.configure(text=str(exc))
             return
         self.on_guardado()

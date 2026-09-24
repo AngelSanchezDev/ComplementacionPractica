@@ -2,14 +2,15 @@
 
 import customtkinter as ctk
 
-from validator_app.core import db
-from validator_app.gui import theme
+from validator_app.controllers.login_controller import LoginController
+from validator_app.models.errors import APIError
+from validator_app.views import theme
 
 
 class LoginFrame(ctk.CTkFrame):
-    def __init__(self, master, conn, on_login):
+    def __init__(self, master, controller: LoginController, on_login):
         super().__init__(master, fg_color="transparent")
-        self.conn = conn
+        self.controller = controller
         self.on_login = on_login
 
         tarjeta = ctk.CTkFrame(self, corner_radius=16, width=360)
@@ -50,7 +51,8 @@ class LoginFrame(ctk.CTkFrame):
         self.lbl_error.pack(padx=32, pady=(4, 8))
 
         ctk.CTkButton(
-            tarjeta, text="Ingresar", command=self._ingresar, width=280, height=38
+            tarjeta, text="Ingresar", command=self._ingresar, width=280,
+            height=theme.ALTO_BOTON, font=theme.FUENTE_BOTON,
         ).pack(padx=32, pady=(4, 32))
 
         self.txt_usuario.bind("<Return>", lambda _e: self._ingresar())
@@ -61,9 +63,12 @@ class LoginFrame(ctk.CTkFrame):
         self.txt_password.configure(show="" if self.mostrar_var.get() else "•")
 
     def _ingresar(self):
-        usuario = db.autenticar(self.conn, self.txt_usuario.get(), self.txt_password.get())
-        if usuario is None:
-            self.lbl_error.configure(text="Usuario o contraseña incorrectos.")
+        try:
+            usuario = self.controller.iniciar_sesion(
+                self.txt_usuario.get(), self.txt_password.get()
+            )
+        except APIError as exc:
+            self.lbl_error.configure(text=str(exc))
             self.txt_password.delete(0, "end")
             return
         self.lbl_error.configure(text="")

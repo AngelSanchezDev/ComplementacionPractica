@@ -19,15 +19,34 @@ FUENTE_SUBTITULO = ("Segoe UI", 13)
 FUENTE_SCORE = ("Segoe UI", 40, "bold")
 FUENTE_NORMAL = ("Segoe UI", 13)
 FUENTE_ETIQUETA = ("Segoe UI", 12, "bold")
+FUENTE_BOTON = ("Segoe UI", 13, "bold")
+
+ALTO_BOTON = 36
 
 
 def color_riesgo(riesgo: str | None) -> str:
     return COLOR_RIESGO.get(riesgo or "", "#888888")
 
 
+def copiar_al_portapapeles(widget, texto: str) -> None:
+    """Copia `texto` al portapapeles usando cualquier widget de Tk como ancla."""
+    widget.clipboard_clear()
+    widget.clipboard_append(texto)
+    widget.update()
+
+
 def configurar_tema() -> None:
     ctk.set_appearance_mode("system")
     ctk.set_default_color_theme("blue")
+
+
+def colores_modo() -> dict[str, str]:
+    """Colores de fondo/texto acordes al modo claro/oscuro actual (fuera de ttk)."""
+    oscuro = ctk.get_appearance_mode() == "Dark"
+    return {
+        "fondo": "#1a1a1a" if oscuro else "#ffffff",
+        "texto": "#dcdcdc" if oscuro else "#1a1a1a",
+    }
 
 
 def estilo_tabla(root) -> str:

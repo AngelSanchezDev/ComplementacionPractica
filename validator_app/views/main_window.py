@@ -1,13 +1,23 @@
-"""Ventana principal de la aplicacion (CustomTkinter)."""
+"""Ventana principal de la aplicacion (CustomTkinter). Vista raiz: abre la
+conexion, guarda la sesion y arma el Controlador de cada pantalla antes de
+mostrarla."""
 
 import customtkinter as ctk
 
-from validator_app.core import db
-from validator_app.gui import theme
-from validator_app.gui.clientes_view import ClientesView
-from validator_app.gui.historial_view import HistorialView
-from validator_app.gui.login import LoginFrame
-from validator_app.gui.validar_view import ValidarView
+from validator_app.controllers.clientes_controller import ClientesController
+from validator_app.controllers.consultas_controller import ConsultasController
+from validator_app.controllers.dashboard_controller import DashboardController
+from validator_app.controllers.historial_controller import HistorialController
+from validator_app.controllers.login_controller import LoginController
+from validator_app.controllers.validar_controller import ValidarController
+from validator_app.models import database
+from validator_app.views import theme
+from validator_app.views.clientes_view import ClientesView
+from validator_app.views.consultas_view import ConsultasView
+from validator_app.views.dashboard_view import DashboardView
+from validator_app.views.historial_view import HistorialView
+from validator_app.views.login_view import LoginFrame
+from validator_app.views.validar_view import ValidarView
 
 
 class App(ctk.CTk):
@@ -17,7 +27,7 @@ class App(ctk.CTk):
         self.title("JSConnect Win Coverage")
         self.geometry("920x600")
         self.minsize(760, 520)
-        self.conn = db.conectar()
+        self.conn = database.conectar()
         self.usuario = None
         self.vista_actual = None
         self._mostrar_login()
@@ -27,7 +37,8 @@ class App(ctk.CTk):
         for widget in self.winfo_children():
             widget.destroy()
         self.usuario = None
-        login = LoginFrame(self, self.conn, on_login=self._al_iniciar_sesion)
+        controller = LoginController(self.conn)
+        login = LoginFrame(self, controller, on_login=self._al_iniciar_sesion)
         login.pack(fill="both", expand=True)
 
     def _al_iniciar_sesion(self, usuario):
@@ -66,15 +77,18 @@ class App(ctk.CTk):
             barra, text="Win Coverage", font=theme.FUENTE_SUBTITULO, text_color="gray60"
         ).pack(padx=20, pady=(0, 24), anchor="w")
 
-        ctk.CTkButton(barra, text="Validar", anchor="w", command=self._mostrar_vista_validar).pack(
-            fill="x", padx=16, pady=4
+        botones_nav = (
+            ("Validar", self._mostrar_vista_validar),
+            ("Dashboard", self._mostrar_vista_dashboard),
+            ("Clientes", self._mostrar_vista_clientes),
+            ("Historial", self._mostrar_vista_historial),
+            ("Consultas SQL", self._mostrar_vista_consultas),
         )
-        ctk.CTkButton(
-            barra, text="Clientes", anchor="w", command=self._mostrar_vista_clientes
-        ).pack(fill="x", padx=16, pady=4)
-        ctk.CTkButton(
-            barra, text="Historial", anchor="w", command=self._mostrar_vista_historial
-        ).pack(fill="x", padx=16, pady=4)
+        for texto, comando in botones_nav:
+            ctk.CTkButton(
+                barra, text=texto, anchor="w", height=theme.ALTO_BOTON, font=theme.FUENTE_BOTON,
+                command=comando,
+            ).pack(fill="x", padx=16, pady=4)
 
         pie = ctk.CTkFrame(barra, fg_color="transparent")
         pie.pack(side="bottom", fill="x", padx=16, pady=16)
@@ -88,14 +102,17 @@ class App(ctk.CTk):
         ).pack(anchor="w", pady=(8, 8))
         ctk.CTkButton(
             pie, text="Cerrar sesion", fg_color="transparent", border_width=1,
+            height=theme.ALTO_BOTON, font=theme.FUENTE_BOTON,
             command=self._cerrar_sesion,
         ).pack(fill="x")
 
     def _alternar_modo(self):
         ctk.set_appearance_mode("dark" if self.modo_oscuro_var.get() else "light")
         vista = self.vista_actual
-        if isinstance(vista, (ClientesView, HistorialView)):
+        if isinstance(vista, (ClientesView, HistorialView, ConsultasView)):
             theme.estilo_tabla(self)
+        elif isinstance(vista, DashboardView):
+            vista.recargar()
 
     def _limpiar_contenedor(self):
         for widget in self.contenedor.winfo_children():
@@ -103,25 +120,45 @@ class App(ctk.CTk):
 
     def _mostrar_vista_validar(self):
         self._limpiar_contenedor()
-        vista = ValidarView(self.contenedor, self.conn, self.usuario, self._ir_a_registrar_cliente)
+        controller = ValidarController(self.conn, self.usuario)
+        vista = ValidarView(self.contenedor, controller, self._ir_a_registrar_cliente)
         vista.grid(row=0, column=0, sticky="nsew")
         self.vista_actual = vista
 
-    def _mostrar_vista_clientes(self):
+    def _mostrar_vista_clientes(self, riesgo_inicial: str | None = None):
         self._limpiar_contenedor()
-        vista = ClientesView(self.contenedor, self.conn)
+        controller = ClientesController(self.conn)
+        vista = ClientesView(self.contenedor, controller, riesgo_inicial=riesgo_inicial)
         vista.grid(row=0, column=0, sticky="nsew")
         self.vista_actual = vista
 
     def _mostrar_vista_historial(self):
         self._limpiar_contenedor()
-        vista = HistorialView(self.contenedor, self.conn, self.usuario)
+        controller = HistorialController(self.conn, self.usuario)
+        vista = HistorialView(self.contenedor, controller)
+        vista.grid(row=0, column=0, sticky="nsew")
+        self.vista_actual = vista
+
+    def _mostrar_vista_dashboard(self):
+        self._limpiar_contenedor()
+        controller = DashboardController(self.conn)
+        vista = DashboardView(self.contenedor, controller, self._ir_a_clientes_por_riesgo)
+        vista.grid(row=0, column=0, sticky="nsew")
+        self.vista_actual = vista
+
+    def _mostrar_vista_consultas(self):
+        self._limpiar_contenedor()
+        controller = ConsultasController(self.conn)
+        vista = ConsultasView(self.contenedor, controller)
         vista.grid(row=0, column=0, sticky="nsew")
         self.vista_actual = vista
 
     def _ir_a_registrar_cliente(self, dni: str):
         self._mostrar_vista_clientes()
         self.vista_actual.abrir_nuevo_con_dni(dni)
+
+    def _ir_a_clientes_por_riesgo(self, riesgo: str):
+        self._mostrar_vista_clientes(riesgo_inicial=riesgo)
 
 
 def main():

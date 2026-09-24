@@ -4,15 +4,14 @@ from tkinter import ttk
 
 import customtkinter as ctk
 
-from validator_app.core import db
-from validator_app.gui import theme
+from validator_app.controllers.historial_controller import HistorialController
+from validator_app.views import theme
 
 
 class HistorialView(ctk.CTkFrame):
-    def __init__(self, master, conn, usuario):
+    def __init__(self, master, controller: HistorialController):
         super().__init__(master, fg_color="transparent")
-        self.conn = conn
-        self.usuario = usuario
+        self.controller = controller
 
         ctk.CTkLabel(self, text="Historial de consultas", font=theme.FUENTE_TITULO).grid(
             row=0, column=0, sticky="w", pady=(0, 16)
@@ -34,9 +33,8 @@ class HistorialView(ctk.CTkFrame):
         self.recargar()
 
     def recargar(self):
-        usuario_id = self.usuario["id"] if self.usuario else None
         self.tabla.delete(*self.tabla.get_children())
-        for fila in db.historial(self.conn, usuario_id):
+        for fila in self.controller.listar():
             riesgo = f"{fila['riesgo']} · {fila['calificacion']}" if fila["riesgo"] else "—"
             score = fila["score"] if fila["score"] is not None else "—"
             self.tabla.insert(

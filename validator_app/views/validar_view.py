@@ -2,15 +2,15 @@
 
 import customtkinter as ctk
 
-from validator_app.core import db
-from validator_app.gui import fields, theme
+from validator_app.controllers.validar_controller import ValidarController
+from validator_app.models.errors import APIError
+from validator_app.views import entrada, theme
 
 
 class ValidarView(ctk.CTkFrame):
-    def __init__(self, master, conn, usuario, on_registrar_cliente):
+    def __init__(self, master, controller: ValidarController, on_registrar_cliente):
         super().__init__(master, fg_color="transparent")
-        self.conn = conn
-        self.usuario = usuario
+        self.controller = controller
         self.on_registrar_cliente = on_registrar_cliente
 
         ctk.CTkLabel(self, text="Validar cliente", font=theme.FUENTE_TITULO).grid(
@@ -32,7 +32,7 @@ class ValidarView(ctk.CTkFrame):
         ctk.CTkLabel(formulario, text="DNI:", font=theme.FUENTE_ETIQUETA).grid(
             row=2, column=0, sticky="w", padx=20, pady=(16, 4)
         )
-        validador = self.register(fields.permitir_digitos(8))
+        validador = self.register(entrada.permitir_digitos(8))
         self.txt_dni = ctk.CTkEntry(
             formulario,
             placeholder_text="8 digitos",
@@ -45,9 +45,10 @@ class ValidarView(ctk.CTkFrame):
         self.lbl_error = ctk.CTkLabel(formulario, text="", text_color="#e5484d")
         self.lbl_error.grid(row=4, column=0, sticky="w", padx=20, pady=(8, 0))
 
-        ctk.CTkButton(formulario, text="VALIDAR", height=38, command=self._validar).grid(
-            row=5, column=0, sticky="we", padx=20, pady=(12, 20)
-        )
+        ctk.CTkButton(
+            formulario, text="VALIDAR", height=theme.ALTO_BOTON, font=theme.FUENTE_BOTON,
+            command=self._validar,
+        ).grid(row=5, column=0, sticky="we", padx=20, pady=(12, 20))
 
         self._construir_tarjeta_resultado()
         self.columnconfigure(0, weight=1)
@@ -80,26 +81,27 @@ class ValidarView(ctk.CTkFrame):
         )
         self.lbl_cliente.grid(row=5, column=0, sticky="w", padx=20, pady=(0, 8))
 
+        self.btn_copiar_dni = ctk.CTkButton(
+            self.tarjeta, text="Copiar DNI", width=130,
+            height=theme.ALTO_BOTON, font=theme.FUENTE_BOTON,
+            command=self._copiar_dni,
+        )
         self.btn_registrar = ctk.CTkButton(
-            self.tarjeta, text="Registrar cliente", command=self._registrar_no_encontrado
+            self.tarjeta, text="Registrar cliente",
+            height=theme.ALTO_BOTON, font=theme.FUENTE_BOTON,
+            command=self._registrar_no_encontrado,
         )
         self._dni_actual = ""
+        self._id_copiado_pendiente = None
 
     def _validar(self):
         self.lbl_error.configure(text="")
         try:
-            lat, lon = fields.parse_coordenadas(self.txt_coordenadas.get())
-        except ValueError as exc:
+            resultado = self.controller.validar(self.txt_coordenadas.get(), self.txt_dni.get())
+        except APIError as exc:
             self.lbl_error.configure(text=str(exc))
             return
-        try:
-            dni = fields.validar_dni(self.txt_dni.get())
-        except ValueError as exc:
-            self.lbl_error.configure(text=str(exc))
-            return
-        self._dni_actual = dni
-        usuario_id = self.usuario["id"] if self.usuario else None
-        resultado = db.validar(self.conn, lat, lon, dni, usuario_id=usuario_id)
+        self._dni_actual = self.txt_dni.get().strip()
         self._mostrar_resultado(resultado)
 
     def _mostrar_resultado(self, resultado):
@@ -124,7 +126,21 @@ class ValidarView(ctk.CTkFrame):
             self.barra_score.set(0)
             self.lbl_riesgo.configure(text="DNI no registrado", text_color="#e5484d")
             self.lbl_cliente.configure(text="")
-            self.btn_registrar.grid(row=6, column=0, sticky="w", padx=20, pady=(0, 20))
+        self.btn_copiar_dni.grid(row=6, column=0, sticky="w", padx=20, pady=(0, 8))
+        if not score:
+            self.btn_registrar.grid(row=7, column=0, sticky="w", padx=20, pady=(0, 20))
+
+    def _copiar_dni(self):
+        if not self._dni_actual:
+            return
+        theme.copiar_al_portapapeles(self, self._dni_actual)
+        texto_original = self.btn_copiar_dni.cget("text")
+        self.btn_copiar_dni.configure(text="¡Copiado!")
+        if self._id_copiado_pendiente:
+            self.after_cancel(self._id_copiado_pendiente)
+        self._id_copiado_pendiente = self.after(
+            1000, lambda: self.btn_copiar_dni.configure(text=texto_original)
+        )
 
     def _registrar_no_encontrado(self):
         self.on_registrar_cliente(self._dni_actual)

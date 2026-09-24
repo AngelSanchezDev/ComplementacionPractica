@@ -138,3 +138,44 @@ cada entrega se probó abriendo la aplicación real (o el `.exe` construido) y
 ejercitando el flujo completo: iniciar sesión, validar un DNI conocido y uno
 desconocido, crear/editar/eliminar un cliente de prueba y revisar que quedara
 en el historial.
+
+## Etapa 7 — Usabilidad, dashboard y consultas con JOIN
+
+A partir de comentarios de uso real sobre la Etapa 6, se afinó la interfaz y
+se agregaron dos pantallas nuevas orientadas a sustentar el proyecto de base
+de datos:
+
+- **Usabilidad:** los botones de acción (Guardar, Nuevo, Editar, Eliminar…)
+  tenían tamaño y tipografía por defecto de Tk, casi invisibles junto al
+  resto de la interfaz; se homogeneizaron con una altura y fuente comunes
+  (`theme.ALTO_BOTON`, `theme.FUENTE_BOTON`). La tabla de clientes ganó una
+  barra de desplazamiento vertical.
+- **Copiar DNI:** botón dedicado en el explorador de clientes (más clic
+  derecho sobre la tabla) y en la tarjeta de resultado de Validar, para no
+  tener que transcribir el número a mano.
+- **Filtro por nivel de riesgo:** el explorador de clientes ganó un
+  desplegable para quedarse solo con un nivel; `buscar_clientes()` en
+  `core/db.py` se amplió para aceptar ese filtro además del texto libre.
+- **Dashboard (matplotlib):** una vista nueva con el porcentaje de clientes
+  en cada nivel de riesgo (tarjetas + gráfico de barras horizontales), donde
+  un clic en cualquier nivel lleva al explorador de clientes ya filtrado por
+  ese riesgo — conectando el punto anterior con este.
+- **Consultas SQL (catálogo de JOIN):** una vista nueva con 5 consultas
+  predefinidas sobre las tablas del proyecto, cada una mostrando un tipo de
+  `JOIN` distinto (INNER simple, LEFT, INNER múltiple sobre 3 tablas, LEFT
+  como antijoin, e INNER con agregación), con el SQL visible junto al
+  resultado — pensada para poder explicar, con ejemplos reales corriendo
+  contra la base, las distintas formas de unir tablas.
+
+**Problema encontrado:** al ejecutar el dashboard, la aplicación fallaba con
+`AttributeError: 'FigureCanvasTkAgg' object has no attribute 'winfo_exists'`
+al cambiar el tamaño de la ventana. La causa: `DashboardView` hereda de
+`ctk.CTkFrame`, que ya usa internamente un atributo de instancia llamado
+`self._canvas` para su propio dibujo (el canvas que pinta las esquinas
+redondeadas); al guardar el gráfico de matplotlib en `self._canvas` se pisaba
+ese atributo interno de CustomTkinter. **Solución:** renombrar el atributo
+propio a `self._canvas_grafico`, dejando intacto el uso interno de
+CustomTkinter. Queda como aviso para cualquier widget nuevo que herede de un
+widget de CustomTkinter: evitar nombres de atributo genéricos como `_canvas`,
+`_frame` o `_label` que puedan chocar con la implementación interna de la
+librería.

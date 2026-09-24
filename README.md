@@ -10,12 +10,19 @@ clientes de un proveedor de internet:
 3. **Score crediticio**: se ingresa un **DNI de 8 dígitos** y se muestra el
    score, nivel de riesgo y nombre registrados en la base de datos, con una
    tarjeta de resultado (color según riesgo, barra de progreso 0–1000).
-4. **Clientes (CRUD)**: explorador con búsqueda y paginación para crear,
-   editar y eliminar clientes, con validación de DNI único, nombre y score.
+4. **Clientes (CRUD)**: explorador con búsqueda, filtro por nivel de riesgo,
+   paginación con barra de desplazamiento y copiar DNI, para crear, editar y
+   eliminar clientes con validación de DNI único, nombre y score.
 5. **Historial**: registro de las validaciones hechas por cada usuario.
+6. **Dashboard**: gráfico (matplotlib) con el porcentaje de clientes por nivel
+   de riesgo; un clic en una barra o tarjeta lleva al explorador de clientes
+   ya filtrado por ese nivel.
+7. **Consultas SQL**: catálogo de 5 consultas predefinidas que muestran
+   distintos tipos de `JOIN` (INNER, LEFT, antijoin, múltiple, con
+   agregación), con el SQL visible y el resultado en una tabla.
 
-No necesita internet ni dependencias del sistema operativo: solo la librería
-estándar de Python más `customtkinter` para la interfaz.
+No necesita internet: solo la librería estándar de Python más
+`customtkinter` (interfaz) y `matplotlib` (dashboard).
 
 ## Rangos de riesgo
 
@@ -69,13 +76,15 @@ main.py                              punto de entrada
 validator_app/core/db.py             base de datos SQLite: usuarios, clientes,
                                       rangos de riesgo, historial de consultas
 validator_app/gui/
-  theme.py                           colores y fuentes compartidos
+  theme.py                           colores, fuentes y estilos compartidos
   login.py                           pantalla de inicio de sesion
   main_window.py                     ventana principal + barra lateral
   validar_view.py                    validar cobertura/score + tarjeta de resultado
-  clientes_view.py                   explorador de clientes (buscar, paginar, CRUD)
+  clientes_view.py                   explorador de clientes (buscar, filtrar, paginar, CRUD)
   cliente_form.py                    formulario crear/editar cliente
   historial_view.py                  historial de consultas
+  dashboard_view.py                  grafico de clientes por nivel de riesgo
+  consultas_view.py                  catalogo de consultas con distintos JOIN
   fields.py                          validacion de coordenadas, DNI, nombre, score
 tools/seed.py                        CLI para agregar usuarios y clientes
 tests/                                pruebas con pytest

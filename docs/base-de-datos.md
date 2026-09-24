@@ -133,3 +133,70 @@ WHERE usuario_id = 1
 ORDER BY id DESC
 LIMIT 20;
 ```
+
+## Catálogo de consultas con JOIN (pantalla "Consultas SQL")
+
+La aplicación trae, listas para ejecutar desde la interfaz, cinco consultas que
+muestran distintos tipos de `JOIN` sobre las mismas tablas. Viven en
+`validator_app/core/db.py` (diccionario `CONSULTAS_CATALOGO`) y se ejecutan con
+`ejecutar_consulta_catalogo(conn, clave)`.
+
+**1. `clientes_riesgo` — INNER JOIN simple.** Cada cliente con su nivel de
+riesgo. Con `INNER JOIN`, solo aparecen clientes que sí encuentran un rango
+coincidente (siempre pasa, porque los rangos cubren 0–1000 completo).
+```sql
+SELECT c.dni, c.nombre, c.score, r.riesgo
+FROM clientes c
+INNER JOIN rangos_riesgo r ON c.score BETWEEN r.score_min AND r.score_max
+ORDER BY c.score DESC
+LIMIT 200;
+```
+
+**2. `riesgo_conteo` — LEFT JOIN.** Parte de `rangos_riesgo` (5 filas fijas) y
+cuenta clientes. Con `LEFT JOIN`, un nivel sin ningún cliente igual aparecería
+con `total_clientes = 0`; con `INNER JOIN` desaparecería de la lista — esa es
+la diferencia que esta consulta está pensada para mostrar.
+```sql
+SELECT r.riesgo, r.calificacion, COUNT(c.dni) AS total_clientes
+FROM rangos_riesgo r
+LEFT JOIN clientes c ON c.score BETWEEN r.score_min AND r.score_max
+GROUP BY r.id
+ORDER BY r.score_min;
+```
+
+**3. `historial_completo` — INNER JOIN múltiple (3 tablas).** Une `consultas`
+con `usuarios` (quién la hizo) y con `clientes` (a quién se consultó). Al ser
+`INNER JOIN` en ambos casos, solo aparecen consultas con usuario válido y con
+un DNI que sí está registrado en `clientes`.
+```sql
+SELECT q.fecha, u.usuario, c.nombre AS cliente, q.dni, q.score
+FROM consultas q
+INNER JOIN usuarios u ON u.id = q.usuario_id
+INNER JOIN clientes c ON c.dni = q.dni
+ORDER BY q.id DESC
+LIMIT 200;
+```
+
+**4. `nunca_consultados` — LEFT JOIN (antijoin).** `LEFT JOIN` de `clientes`
+hacia `consultas`, quedándose solo con las filas sin coincidencia
+(`q.id IS NULL`). Es la forma clásica de responder "qué hay en A que no está
+en B".
+```sql
+SELECT c.dni, c.nombre, c.score
+FROM clientes c
+LEFT JOIN consultas q ON q.dni = c.dni
+WHERE q.id IS NULL
+ORDER BY c.nombre
+LIMIT 200;
+```
+
+**5. `promedio_por_riesgo` — INNER JOIN + agregación.** El mismo patrón que
+usa el dashboard, pero con `AVG` en vez de `COUNT`: agrupa los clientes por su
+rango de riesgo y calcula el promedio de su score.
+```sql
+SELECT r.riesgo, COUNT(*) AS clientes, ROUND(AVG(c.score), 1) AS score_promedio
+FROM clientes c
+INNER JOIN rangos_riesgo r ON c.score BETWEEN r.score_min AND r.score_max
+GROUP BY r.id
+ORDER BY r.score_min;
+```

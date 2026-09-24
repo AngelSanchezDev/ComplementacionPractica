@@ -1,7 +1,12 @@
-"""Validacion y parseo de entradas del usuario."""
+"""Controlador: validacion y parseo de entradas crudas del usuario.
+
+Estas funciones lanzan `ValueError` (no `errors.APIError`): son de proposito
+general y no dependen del Modelo. Cada Controlador que las use debe atraparlo
+y relanzarlo como `errors.ValidationError`, para que las Vistas solo necesiten
+manejar un unico tipo de excepcion.
+"""
 
 import re
-from collections.abc import Callable
 
 
 def parse_coordenadas(texto: str):
@@ -49,12 +54,3 @@ def validar_nombre(texto: str) -> str:
     if not re.fullmatch(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]+", nombre):
         raise ValueError("El nombre solo puede tener letras y espacios")
     return nombre
-
-
-def permitir_digitos(max_len: int) -> Callable[[str], bool]:
-    """Filtro para validatecommand de Tk: solo digitos y hasta max_len caracteres."""
-
-    def filtro(propuesto: str) -> bool:
-        return propuesto == "" or (propuesto.isdigit() and len(propuesto) <= max_len)
-
-    return filtro
