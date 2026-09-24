@@ -31,3 +31,34 @@ def test_validar_dni_invalido():
     for valor in ("1234567", "123456789", "1234567A", ""):
         with pytest.raises(ValueError):
             fields.validar_dni(valor)
+
+
+def test_validar_score_texto():
+    assert fields.validar_score_texto(" 750 ") == 750
+    assert fields.validar_score_texto("0") == 0
+    assert fields.validar_score_texto("1000") == 1000
+
+
+def test_validar_score_texto_invalido():
+    for valor in ("-1", "1001", "abc", "", "12.5"):
+        with pytest.raises(ValueError):
+            fields.validar_score_texto(valor)
+
+
+def test_validar_nombre():
+    assert fields.validar_nombre("  Juan   Perez  ") == "Juan Perez"
+
+
+def test_validar_nombre_invalido():
+    for valor in ("AB", "Juan123", "Juan_Perez"):
+        with pytest.raises(ValueError):
+            fields.validar_nombre(valor)
+
+
+def test_permitir_digitos_acepta_solo_numeros_hasta_el_limite():
+    filtro = fields.permitir_digitos(3)
+    assert filtro("") is True
+    assert filtro("1") is True
+    assert filtro("123") is True
+    assert filtro("1234") is False
+    assert filtro("12a") is False

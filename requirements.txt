@@ -1,1 +1,1 @@
-# La app solo usa la libreria estandar de Python (tkinter, sqlite3, hashlib).
+customtkinter>=5.2

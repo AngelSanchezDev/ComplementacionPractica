@@ -2,7 +2,8 @@
 
 Uso:
     python tools/seed.py usuario <usuario> <password> [nombre]
-    python tools/seed.py cliente <dni> <score> [riesgo] [nombre]
+    python tools/seed.py cliente <dni> <score> <nombre>
+    python tools/seed.py generar <cantidad>
 """
 
 import argparse
@@ -23,11 +24,14 @@ def main(argv=None) -> int:
     p_usuario.add_argument("password")
     p_usuario.add_argument("nombre", nargs="?", default="")
 
-    p_cliente = sub.add_parser("cliente", help="Registrar o actualizar el score de un DNI")
+    p_cliente = sub.add_parser("cliente", help="Registrar un cliente nuevo (DNI no repetido)")
     p_cliente.add_argument("dni")
     p_cliente.add_argument("score", type=int)
-    p_cliente.add_argument("riesgo", nargs="?", default="")
-    p_cliente.add_argument("nombre", nargs="?", default="")
+    p_cliente.add_argument("nombre")
+
+    p_generar = sub.add_parser("generar", help="Generar clientes ficticios adicionales")
+    p_generar.add_argument("cantidad", type=int)
+    p_generar.add_argument("--semilla", type=int, default=42)
 
     args = parser.parse_args(argv)
     conn = db.conectar()
@@ -35,9 +39,12 @@ def main(argv=None) -> int:
         if args.comando == "usuario":
             db.crear_usuario(conn, args.usuario, args.password, args.nombre)
             print(f"Usuario '{args.usuario}' creado.")
-        else:
-            db.registrar_cliente(conn, args.dni, args.nombre, args.score, args.riesgo)
+        elif args.comando == "cliente":
+            db.crear_cliente(conn, args.dni, args.nombre, args.score)
             print(f"Cliente {args.dni} registrado con score {args.score}.")
+        else:
+            creados = db.generar_clientes(conn, args.cantidad, semilla=args.semilla)
+            print(f"{creados} clientes generados.")
     except db.APIError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

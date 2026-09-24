@@ -9,7 +9,7 @@ if (-not (Test-Path $python)) {
 }
 
 & $python -m PyInstaller --clean --noconfirm --onefile --windowed `
-    --name "JSConnect-Win-Coverage" main.py
+    --collect-data customtkinter --name "JSConnect-Win-Coverage" main.py
 if ($LASTEXITCODE -ne 0) {
     throw "No se pudo construir el ejecutable."
 }
