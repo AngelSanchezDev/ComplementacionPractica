@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Build PyInstaller
+build/
+dist/
+*.spec
+
+# Base de datos local (se crea sola al ejecutar la app)
+datos/
+*.db
+
+# Entorno / config local
+.env
+*.local
+
+# Windows
+Thumbs.db
+Desktop.ini
